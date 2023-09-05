@@ -2,103 +2,20 @@
 // 
 // 블로그: https://opentutorials.org/module/3590
 // 유튜브: https://www.youtube.com/playlist?list=PLuHgQVnccGMAGOQu8CBDO9hn-FXFmm4Wp
-
-// Semantic URL: URL에 ?가 들어간 쿼리 스트링을 사용하기보다 가독성이 좋은 계층적 Path로 URL를 구성하는 방법
-// ex. http://localhost:3000/topic?id=0 ==> http://localhost:3000/topic/0
-
-
-const fs = require('fs');
-const path = require('path');
-const sanitizeHtml = require('sanitize-html');
-const template = require('./lib/template.js');
-
-
-const express = require('express');
-const app = express();
-const port = 3000;
-
-// 홈(/)
-app.get('/', (req, res) => {
-	fs.readdir('data', function(err, fileList) {		// fileList = [ 'CSS', 'HTML', 'JavaScript' ]
-		var title = 'Welcome';
-		var description = 'Hello, node.js';
-
-		var list = template.list(fileList);
-		var html = template.html(title, list, `<h2>${title}</h2>${description}`, `<a href="/create">create</a>`);
-
-		res.send(html);
-	});
-});
+//
+// pm2 사용법: https://www.youtube.com/watch?v=KzjTCREOIkk&list=PLuHgQVnccGMA9QQX5wqj6ThK7t2tsGxjm&index=39
+// 설치: npm install pm2 -g
+// 실행: pm2 start main.js --watch
+// 정지: pm2 stop main(id)
+// 전부정지: pm2 kill
+// 목록: pm2 list
+// 모니터링: pm2 monit (나갈 때는 q)
+// 내부관찰: pm2 log (나갈 때는 Ctrl + C)
+// 실행하여 관찰도 하면서 + 로그도 확인: pm2 start .\main.js --watch --no-daemon
+// ==> 이경우 문제점: 가끔 Ctrl + C로도 꺼지지 않는다 + ./data/파일 생성시 node가 꺼졌다가 켜진다
+// ==> 해결법:  pm2 start .\main.js --watch --ignore-watch="data/* lib/*" --no-daemon
 
 
-// 아이템 페이지(HTML, CSS, JavaScript) (시맨틱 URL로 구성: http://localhost:3000/id?HTML ==> http://localhost:3000/page/HTML)
-// 주의: http://localhost:3000/page 	==> 현재 라우트로 들어오지 않는다(Cannot GET /page)
-// 주의: http://localhost:3000/page/ 	==> 현재 라우트로 들어오지 않는다(Cannot GET /page/)	==> <결론> pageId에는 undefined가 들어올 수 없다
-app.get('/page/:pageId', (req, res) => {
-	var { pageId } = req.params;								// req.params = { pageId: 'html' }, req.params 객체의 속성 이름과 변수 이름이 일치해야한다. (일치하지 않으면 없는 속성이라서 undefined)
-	console.log(`pageId=${pageId}`);						// http://localhost:3000/page/html2 ==> pageId = 'html2'
-
-	fs.readdir('data', function(err, fileList) {		// fileList = [ 'CSS', 'HTML', 'JavaScript' ]
-
-		var filteredId = path.parse(pageId).base;			// '../password.txt' ==> 'password.txt'
-		fs.readFile(`./data/${filteredId}`, 'utf-8', (err, description) => {
-			var title = pageId;
-			var sanitizedTitle = sanitizeHtml(title);
-			var sanitizedDescription = sanitizeHtml(description, {
-				allowedTags: ['h1']
-			});
-			
-			var list = template.list(fileList);
-			var html = template.html(title, list, 
-				`<h2>${sanitizedTitle}</h2>${sanitizedDescription}`, 
-				`<a href="/create">CREATE</a> 
-				<a href="/update?id=${sanitizedTitle}">UPDATE</a> 
-				<form action="/delete_process" method="post" onsubmit="alert('${sanitizedTitle}항목을 삭제하시겠습니까?');">
-					<input type="hidden" name="id" value="${sanitizedTitle}">
-					<input type="submit" value="delete">
-				</form`);															// delete를 GET방식으로 링크를 드러내서는 안 되므로 POST방식으로 하기 위해 form 사용
-
-			res.send(html);
-		});
-	});
-});
-
-
-// 글쓰기
-app.get('/create', (req, res) => {
-	fs.readdir('data', function(err, fileList) {
-		// console.log(fileList);					// [ 'CSS', 'HTML', 'JavaScript' ]
-		var title = 'WEB - create';
-
-		var list = template.list(fileList);
-		var html = template.html(title, list, `
-			<form action="/create_process" method="post">
-				<p>
-					<input type="text" name="title" placeholder="title">
-				</p>
-				<p>
-					<textarea name="description" placeholder="description"></textarea>
-				</p>
-				<p>
-					<input type="submit">
-				</p>
-			</form>
-		`, 
-		'');
-
-		res.send(html);
-	});
-});
-
-
-
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
-});
-
-
-
-/* Express 전환 전
 var http = require('http');
 var fs = require('fs');
 var url = require('url');
@@ -281,22 +198,22 @@ var app = http.createServer(
 				var description = post.description;
 				// console.log(post);
 
-				
-				// // 일단 파일을 쓰고
-				// fs.writeFile(`./data/${title}`, description, 'utf-8', function(err) {
-				// 	if(err) throw err;
+				/*
+				// 일단 파일을 쓰고
+				fs.writeFile(`./data/${title}`, description, 'utf-8', function(err) {
+					if(err) throw err;
 
-				// 	response.writeHead(302, {Location: `/?id=${title}`});
-				// 	response.end();
-				// });
+					response.writeHead(302, {Location: `/?id=${title}`});
+					response.end();
+				});
 
-				// // id와 title이 다르다면 id(예전 title)로 된 파일을 지워준다
-				// if(id !== title) {
-				// 	fs.rm(`./data/${id}`, function(err) {
-				// 		if(err) throw err;
-				// 	});						
-				// }
-				
+				// id와 title이 다르다면 id(예전 title)로 된 파일을 지워준다
+				if(id !== title) {
+					fs.rm(`./data/${id}`, function(err) {
+						if(err) throw err;
+					});						
+				}
+				*/
 
 				fs.rename(`data/${id}`, `data/${title}`, function(error){
 					if(error) throw error;
@@ -345,8 +262,3 @@ var app = http.createServer(
 );
 
 app.listen(3000);
-*/
-
-
-
-
