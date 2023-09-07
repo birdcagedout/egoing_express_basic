@@ -6,7 +6,8 @@
 // Semantic URL: URL에 ?가 들어간 쿼리 스트링을 사용하기보다 가독성이 좋은 계층적 Path로 URL를 구성하는 방법
 // ex. http://localhost:3000/topic?id=0 ==> http://localhost:3000/topic/0
 //
-// 3단계. Express + 미들웨어 2개 쓰기(body-parser, compression)
+// 1단계. 쌩짜 node.js 코드를 Express로 옮기기
+ 
 
 const fs = require('fs');
 const path = require('path');
@@ -18,27 +19,6 @@ const template = require('./lib/template.js');
 const express = require('express');
 const app = express();
 const port = 3000;
-
-
-// 미들웨어(body-Parser) 사용 1. body-parser
-// app.use(미들웨어 부분), 사용자의 요청이 들어올 때마다 미들웨어 작동함
-const bodyParser = require('body-parser');
-
-// (클라이언트의) 폼 데이터 요청에 대해서 사용
-// 이제 app.post(경로, (req, res){})의 req 객체에는 (전에는 없었던) body라는 프로퍼티가 생긴다
-app.use(bodyParser.urlencoded({extended: false}));
-
-// json 요청에 대해서 사용
-// app.use(bodyParser.json());
-
-
-
-// 미들웨어(body-Parser) 사용 2. compression
-const compression = require('compression');
-app.use(compression());
-
-
-
 
 // 홈(/)
 app.get('/', (req, res) => {
@@ -121,8 +101,6 @@ app.get('/create', (req, res) => {
 // 글쓰기 처리(create_process)
 // 경로를 글쓰기와 똑같이 '/create'로 해도 된다 ==> 이 경우 request가 GET이면 '글쓰기'가 걸릴 것이고, POST이면 '글쓰기 처리'가 걸려서 처리된다.
 app.post('/create_process', (req, res) => {
-
-	/* 미들웨어 body-parser 사용 전
 	// POST로 전송된 data 처리
 	var body = '';
 
@@ -149,22 +127,6 @@ app.post('/create_process', (req, res) => {
 			res.redirect(302, `/page/${encodeURI(title)}`);		// 방금 추가된 아이템 페이지로 redirection (301=영구이동, 302=임시이동), 한글일 때는 Location: `/?id=${encodeURI(title)}
 		});		// fs.writeFile
 	});		// req.on
-	*/
-
-
-	// 미들웨어 body-parser 사용 후
-	// 1) req.on("data", 콜백) 함수 불필요 <== POST로 데이터가 들어올 때마다 body 변수에 저장할 필요가 없으므로
-	// 2) req.on("end", 콜백) 함수 불필요 <== POST 데이터가 다 들어오면 res로 응답하는 부분을 그냥 써주면 된다
-	// 3) 폼 데이터를 파싱(URLSearchParams)할 필요없이 req.body로 참조할 수 있다. 
-	var post =  req.body;
-	var title = post.title;
-	var description = post.description;
-
-	fs.writeFile(`./data/${title}`, description, 'utf-8', function(err) {
-		if(err) throw err;
-
-		res.redirect(302, `/page/${encodeURI(title)}`);		// 방금 추가된 아이템 페이지로 redirection (301=영구이동, 302=임시이동), 한글일 때는 Location: `/?id=${encodeURI(title)}
-	});		// fs.writeFile
 });		// app.post
 
 
@@ -205,10 +167,9 @@ app.get('/update/:updateId', (req, res) => {
 });
 
 
+
 // 수정 처리하기(/update_process)
 app.post('/update_process', (req, res) => {
-
-	/* 미들웨어 사용 전
 	// POST로 전송된 data 처리
 	var body = '';
 
@@ -236,33 +197,14 @@ app.post('/update_process', (req, res) => {
 			fs.writeFile(`./data/${title}`, description, 'utf8', function(err) {
 				if(err) throw err;
 				res.redirect(302, `/page/${title}`);
-			});	// fs.writeFile
-		});	// fs.rename
-	});	// req.on('end')
-	*/
-
-
-	// 미들웨어 사용 후
-	var post = req.body;
-	var id = post.id;
-	var title = post.title;
-	var description = post.description;
-
-	fs.rename(`./data/${id}`, `./data/${title}`, function(error) {
-		if(error) throw error;
-		fs.writeFile(`./data/${title}`, description, 'utf8', function(err) {
-			if(err) throw err;
-			res.redirect(302, `/page/${title}`);
-		});	// fs.writeFile
-	});	// fs.rename
-
+			})
+		});
+	});
 });
 
 
 // 삭제 처리하기(delete_process)
 app.post('/delete_process', (req, res) => {
-
-	/* 미들웨어 사용 전
 	// POST로 전송된 data 처리
 	var body = '';
 
@@ -286,17 +228,6 @@ app.post('/delete_process', (req, res) => {
 			res.redirect(302, `/`);
 		});
 	});
-	*/ 
-
-	
-	// 미들웨어 사용 후
-	var post = req.body;
-	var id = post.id;
-	var filteredId = path.parse(id).base;
-	fs.unlink(`./data/${filteredId}`, function(err){
-		res.redirect(302, `/`);
-	});
-
 });
 
 
@@ -312,8 +243,6 @@ app.use( (req, res, next) => {
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
-
-
 
 
 
